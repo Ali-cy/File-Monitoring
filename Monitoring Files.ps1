@@ -35,14 +35,13 @@ if ($response -eq "A". ToUpper()) {
 }
 elseif ($response -eq "B".ToUpper()){
     $fileHashDictionary = @{}
-    #Load file|hash from basline.txt and store them in a dictionary 
+    # Load file|hash from baseline.txt and store them in a dictionary 
     $filePathsAndHashes = Get-Content -Path .\baseline.txt
-    foreach ($f in $filePathsAndHashes){
-        $path, $hash = $f -split "\\|"
-        $fileHashDictionary[$path] = $hash
+    foreach ($file in $filePathsAndHashes){  # <-- Changed $f to $file
+        $fileHashDictionary.add($file.Split("|")[0], $file.Split("|")[1])
     }     
     
-    #Begin (Continuously) monitoring files with saved Baseline
+    # Begin (Continuously) monitoring files with saved Baseline
     while($true){
         Start-Sleep -Seconds 2 
         
@@ -51,12 +50,29 @@ elseif ($response -eq "B".ToUpper()){
         foreach ($f in $filehash) {
             $hash = CalculateFileHash $f.FullName
             
-            if ($fileHashDictionary.ContainsKey($hash.Path) -eq $false){
-                #A new file has been created!
-                Write-Host "$($hash.Path) has been created!" -Foregroundcolor Green
+            if ($fileHashDictionary.ContainsKey($hash.Path) -eq $null){
+                # A new file has been created!
+                Write-Host "$($hash.Path) has been created!" -ForegroundColor Green
                 $fileHashDictionary[$hash.Path] = $hash.Hash
             }
+            else {
+                # Notify if a new file has been changed
+                if ($fileHashDictionary[$hash.Path] -eq $hash.Hash) {
+                    # The file has not changed
+                }
+                else {
+                    # File has been compromised!, notify the user
+                    Write-Host "$($hash.Path) has changed!!!" -ForegroundColor Yellow
+                }
+            }
+        }
+
+        foreach ($key in $fileHashDictionary.Keys) {
+            $baselineFileStillExists = Test-Path -Path $key
+            if (-Not $baselineFileStillExists) {
+                # One of the baseline files must have been deleted, notify the user
+                Write-Host "$($key) has been deleted!" -ForegroundColor DarkRed -BackgroundColor Gray
+            }
+        }
     }
-    Write-Host "Read existing baseline.txt, start monitoring files." -ForegroundColor Yellow
-}
 }
